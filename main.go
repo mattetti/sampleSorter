@@ -24,7 +24,7 @@ var (
 	flagGroupSize   = flag.Int("perFolder", 128, "Maximum of samples per destination sub folder")
 	flagDryRun      = flag.Bool("dry", false, "Enable a dry run where files aren't really copied")
 	flagDebug       = flag.Bool("debug", false, "Enable debugging logs")
-	flagMax         = flag.Int("max", 1000, "Max samples to be moved")
+	flagMax         = flag.Int("max", 0, "Max samples to be moved")
 
 	matchingPaths = []string{}
 )
@@ -80,7 +80,7 @@ func main() {
 	files := []string{}
 	// loop through all the matches and group them by 128 and copy them in their own folders.
 	for i, filePath := range matchingPaths {
-		if i >= *flagMax {
+		if *flagMax > 0 && i >= *flagMax {
 			fmt.Println("We reached the max amount of samples to copy:", *flagMax)
 			break
 		}
