@@ -21,9 +21,10 @@ var (
 	flagSource      = flag.String("src", "", "Path to look for samples")
 	flagKeyword     = flag.String("keyword", "", "Keyword to look for in samples")
 	flagDestination = flag.String("dest", "", "Destination of where to put the filtered samples (defaults to your user folder)")
-	flagGroupSize   = flag.Int("max", 128, "Maximum of samples per destination sub folder")
+	flagGroupSize   = flag.Int("perFolder", 128, "Maximum of samples per destination sub folder")
 	flagDryRun      = flag.Bool("dry", false, "Enable a dry run where files aren't really copied")
 	flagDebug       = flag.Bool("debug", false, "Enable debugging logs")
+	flagMax         = flag.Int("max", 1000, "Max samples to be moved")
 
 	matchingPaths = []string{}
 )
@@ -72,18 +73,23 @@ func main() {
 	fmt.Printf("Found %d matching files to copy\n", len(matchingPaths))
 
 	// TODO: ask Dot if he wants to sort the matches
+	// TODO: dedupe the files
 
 	groupIdx := 1
 	fileIdx := 0
 	files := []string{}
 	// loop through all the matches and group them by 128 and copy them in their own folders.
-	for _, filePath := range matchingPaths {
+	for i, filePath := range matchingPaths {
+		if i >= *flagMax {
+			fmt.Println("We reached the max amount of samples to copy:", *flagMax)
+			break
+		}
 		// check if we filled up our group yet
 		if fileIdx >= 128 {
 			// reset our counter
 			fileIdx = 0
 			// copy the files to the group folder
-			if err := copyFilesToGroup(files, *flagDestination, groupIdx); err != nil {
+			if err := copyFilesToGroup(files, destPath, groupIdx); err != nil {
 				log.Printf("Something went wrong when copying the matching files into the group %d folder - %s\n", groupIdx, err)
 			}
 			// increase the group id
@@ -98,11 +104,11 @@ func main() {
 	}
 	// copy the left overs
 	if len(files) > 0 {
-		if err := copyFilesToGroup(files, *flagDestination, groupIdx); err != nil {
+		if err := copyFilesToGroup(files, destPath, groupIdx); err != nil {
 			log.Printf("Something went wrong when copying the matching files into the group %d folder - %s\n", groupIdx, err)
 		}
 	}
-	fmt.Println("Your files are in", *flagDestination)
+	fmt.Println("Your files are in", destPath)
 }
 
 func findMatchingFiles(src, keyword string) (matchPaths []string, err error) {
@@ -127,6 +133,10 @@ func visit(path string, fi os.FileInfo, err error) (e error) {
 
 	// test match, if we match, let's add to the matchingPaths
 	filename := strings.ToLower(filepath.Base(path))
+	ext := filepath.Ext(filename)
+	if ext != ".wav" && ext != ".aiff" && ext != ".aif" {
+		return nil
+	}
 	if strings.Contains(filename, *flagKeyword) {
 		if *flagDebug {
 			fmt.Println("match found:", path)
@@ -142,6 +152,7 @@ func copyFilesToGroup(srcPaths []string, destPath string, idx int) error {
 	subFolderPath := filepath.Join(destPath, fmt.Sprintf("group_%d", idx))
 	os.MkdirAll(subFolderPath, 0777)
 	fmt.Printf("Copying %d files to %s\n", len(srcPaths), subFolderPath)
+	// TODO: make sure we don't have 2 files with the same filename
 	for _, src := range srcPaths {
 		filename := filepath.Base(src)
 		dest := filepath.Join(subFolderPath, filename)
