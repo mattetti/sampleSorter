@@ -62,6 +62,7 @@ func main() {
 	if destPath[:2] == "~/" {
 		destPath = strings.Replace(destPath, "~", usr.HomeDir, 1)
 	}
+	destPath = filepath.Join(destPath, *flagKeyword)
 
 	// recursively search for matching file names in the src folder
 	matchingPaths, err = findMatchingFiles(sourcePath, *flagKeyword)
@@ -108,7 +109,7 @@ func main() {
 			log.Printf("Something went wrong when copying the matching files into the group %d folder - %s\n", groupIdx, err)
 		}
 	}
-	fmt.Println("Your files are in", destPath)
+	fmt.Printf("%d files copied to %s\n", len(matchingPaths), destPath)
 }
 
 func findMatchingFiles(src, keyword string) (matchPaths []string, err error) {
